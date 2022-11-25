@@ -85,13 +85,13 @@ export class EcsCdkStack extends cdk.Stack {
     const baseImage = 'public.ecr.aws/amazonlinux/amazonlinux:2022'
     const container = taskDef.addContainer('n8n-app', {
       image: ecs.ContainerImage.fromRegistry(baseImage),
-      memoryLimitMiB: 256,
-      cpu: 256,
+      memoryLimitMiB: "2GB",
+      cpu: 512,
       logging
     });
 
     container.addPortMappings({
-      containerPort: 5000,
+      containerPort: 5678,
       protocol: ecs.Protocol.TCP
     });
 
@@ -104,7 +104,7 @@ export class EcsCdkStack extends cdk.Stack {
     });
 
 
-    /* where do these constants come from? 6, 10, 60? */
+    /* Sample constants 6, 10, 60 */
 
     const scaling = fargateService.service.autoScaleTaskCount({ maxCapacity: 6 });
     scaling.scaleOnCpuUtilization('cpuscaling', {
@@ -162,7 +162,7 @@ export class EcsCdkStack extends cdk.Stack {
           build: {
             commands: [
               'cd n8n/docker/images/n8n',
-              `docker buildx build --build-arg N8N_VERSION=latest --platform linux/amd64 --output type=docker -t $ecr_repo_uri:$tag .`,
+              `docker build --build-arg N8N_VERSION=latest -t ecr_repo_uri:$tag .`,
               /*`docker build -t $ecr_repo_uri:$tag .`,*/
               '$(aws ecr get-login --no-include-email)',
               'docker push $ecr_repo_uri:$tag'
