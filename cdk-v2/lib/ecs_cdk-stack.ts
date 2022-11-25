@@ -27,7 +27,7 @@ export class EcsCdkStack extends cdk.Stack {
     const githubPersonalTokenSecretName = new cdk.CfnParameter(this, "githubPersonalTokenSecretName", {
         type: "String",
         description: "The name of the AWS Secrets Manager Secret which holds the GitHub Personal Access Token for this project.",
-        default: "/aws-samples/amazon-ecs-fargate-cdk-v2-cicd/github/personal_access_token" 
+        default: "/aws-samples/amazon-ecs-fargate-cdk-v2-cicd-n8n/github/personal_access_token" 
     })
     //default: `${this.stackName}`
 
@@ -162,7 +162,8 @@ export class EcsCdkStack extends cdk.Stack {
           build: {
             commands: [
               'cd n8n/docker/images/n8n',
-              `docker build -t $ecr_repo_uri:$tag .`,
+              `docker buildx build --build-arg N8N_VERSION=latest --platform linux/amd64 --output type=docker -t $ecr_repo_uri:$tag .`,
+              /*`docker build -t $ecr_repo_uri:$tag .`,*/
               '$(aws ecr get-login --no-include-email)',
               'docker push $ecr_repo_uri:$tag'
             ]
@@ -171,14 +172,14 @@ export class EcsCdkStack extends cdk.Stack {
             commands: [
               'echo "in post-build stage"',
               'cd ..',
-              "printf '[{\"name\":\"n8n-app\",\"imageUri\":\"%s\"}]' $ecr_repo_uri:$tag > imagedefinitions.json",
-              "pwd; ls -al; cat imagedefinitions.json"
+              "printf '[{\"name\":\"n8n-app\",\"imageUri\":\"%s\"}]' $ecr_repo_uri:$tag > $CODEBUILD_SRC_DIR/imagedefinitions.json",
+              "pwd; ls -al; cat $CODEBUILD_SRC_DIR/imagedefinitions.json"
             ]
           }
         },
         artifacts: {
           files: [
-            'imagedefinitions.json'
+            '$CODEBUILD_SRC_DIR/imagedefinitions.json'
           ]
         }
       })
