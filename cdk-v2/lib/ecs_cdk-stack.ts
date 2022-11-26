@@ -77,16 +77,19 @@ export class EcsCdkStack extends cdk.Stack {
     });
 
     const taskDef = new ecs.FargateTaskDefinition(this, "ecs-taskdef", {
-      taskRole: taskrole
+      taskRole: taskrole,
+      memoryLimitMiB: 3072,
+      cpu: 1024
     });
 
     taskDef.addToExecutionRolePolicy(executionRolePolicy);
 
-    const baseImage = 'public.ecr.aws/amazonlinux/amazonlinux:2022'
+    //const baseImage = 'public.ecr.aws/amazonlinux/amazonlinux:2022'
+    const baseImage = '347830095179.dkr.ecr.us-east-2.amazonaws.com/joningonyou-14-ecrrepo714fb1b2-v1pae0v5p4ai:latest'
     const container = taskDef.addContainer('n8n-app', {
       image: ecs.ContainerImage.fromRegistry(baseImage),
-      memoryLimitMiB: "2GB",
-      cpu: 512,
+      memoryLimitMiB: 2048,
+      cpu: 1024,
       logging
     });
 
@@ -115,7 +118,8 @@ export class EcsCdkStack extends cdk.Stack {
 
 
 
-
+    /*
+     */
 
     const gitHubSource = codebuild.Source.gitHub({
       owner: githubUserName.valueAsString,
@@ -131,7 +135,7 @@ export class EcsCdkStack extends cdk.Stack {
       projectName: `${this.stackName}`,
       source: gitHubSource,
       environment: {
-        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_2,
+        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
         privileged: true
       },
       environmentVariables: {
@@ -148,12 +152,12 @@ export class EcsCdkStack extends cdk.Stack {
         version: "0.2",
         phases: {
           pre_build: {
-            /*
-            commands: [
-              'env',
-              'export tag=${CODEBUILD_RESOLVED_SOURCE_VERSION}'
-            ]
-            */
+            //
+            //commands: [
+            //  'env',
+            //  'export tag=${CODEBUILD_RESOLVED_SOURCE_VERSION}'
+            //]
+            //
             commands: [
               'env',
               'export tag=latest'
@@ -162,8 +166,7 @@ export class EcsCdkStack extends cdk.Stack {
           build: {
             commands: [
               'cd n8n/docker/images/n8n',
-              `docker build --build-arg N8N_VERSION=latest -t ecr_repo_uri:$tag .`,
-              /*`docker build -t $ecr_repo_uri:$tag .`,*/
+              `docker build --build-arg N8N_VERSION=latest -t $ecr_repo_uri:$tag .`,
               '$(aws ecr get-login --no-include-email)',
               'docker push $ecr_repo_uri:$tag'
             ]
@@ -171,15 +174,15 @@ export class EcsCdkStack extends cdk.Stack {
           post_build: {
             commands: [
               'echo "in post-build stage"',
-              'cd ..',
-              "printf '[{\"name\":\"n8n-app\",\"imageUri\":\"%s\"}]' $ecr_repo_uri:$tag > $CODEBUILD_SRC_DIR/imagedefinitions.json",
-              "pwd; ls -al; cat $CODEBUILD_SRC_DIR/imagedefinitions.json"
+              'cd ../../../..',
+              "printf '[{\"name\":\"n8n-app\",\"imageUri\":\"%s\"}]' $ecr_repo_uri:$tag > imagedefinitions.json",
+              "pwd; ls -al; cat imagedefinitions.json"
             ]
           }
         },
         artifacts: {
           files: [
-            '$CODEBUILD_SRC_DIR/imagedefinitions.json'
+            'imagedefinitions.json'
           ]
         }
       })
@@ -234,10 +237,10 @@ export class EcsCdkStack extends cdk.Stack {
           stageName: 'build',
           actions: [buildAction],
         },
-        {
+        /*{
           stageName: 'approve',
           actions: [manualApprovalAction],
-        },
+        },*/
         {
           stageName: 'deploy-to-ecs',
           actions: [deployAction],
@@ -258,6 +261,8 @@ export class EcsCdkStack extends cdk.Stack {
       resources: [`${cluster.clusterArn}`],
     }));
 
+    /*
+    */
 
     new cdk.CfnOutput(this, "image", { value: ecrRepo.repositoryUri+":latest"} )
     new cdk.CfnOutput(this, 'loadbalancerdns', { value: fargateService.loadBalancer.loadBalancerDnsName });
